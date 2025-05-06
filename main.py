@@ -97,14 +97,11 @@ def calculate_schedule(root):
   if not processes:
     messagebox.showinfo("No Processes", "Please add at least one process")
     return
-      
-  # Make a deep copy of processes to avoid modifying the original data
-  # processes = copy.deepcopy(processes)
   
-  # Sort processes by arrival time
+  # ترتيب العمليات بناءا على وقت الوصول
   processes.sort(key=lambda x: x["arrival_time"])
   
-  # Initialize variables
+  # إنشاء المتغيرات الأساسية
   current_time = 0
   completed_processes = 0
   total_processes = len(processes)
@@ -115,37 +112,39 @@ def calculate_schedule(root):
   for process in processes:
     process["remaining_time"] = process["burst_time"]
   
-  # Create ready queue
+  # إنشاء المصفوفة
   ready_queue = []
   current_process = None
   
-  # Process until all processes are completed
+  # دائرة تكرار للعمليات حتى يتم تنفيذ كافة العمليات
   while completed_processes < total_processes:
-    # Check for newly arrived processes
+    # تحقق من العمليات اللتي وصلت في الوقت الحالي وضعهم في المصفوفة
     for process in processes:
       if (process["arrival_time"] <= current_time and process["remaining_time"] > 0 and process not in ready_queue and process != current_process):
         ready_queue.append(process)
     
-    # Sort ready queue by priority (lower value = higher priority)
+    # رتب المصفوفة بناءا على الاولوية
     ready_queue.sort(key=lambda x: x["priority"])
     
-    # If there's a current process and a higher priority process has arrived, preempt
-    if current_process and ready_queue and ready_queue[0]["priority"] < current_process["priority"]:
+    # تحقق من أن أولوية العملية الحالية أكبر من العلمية الأولى في المصفوفة وضعها في المصفوفة
+    if current_process and ready_queue and  current_process["priority"] > ready_queue[0]["priority"]:
       ready_queue.append(current_process)
-      # Record the execution segment for Gantt chart
+      # قم بتسجيل معلومات العملية الحالية في مصفوفة جانت
       if gantt_chart and gantt_chart[-1]["process"] == current_process["id"]:
         gantt_chart[-1]["end"] = current_time
       else:
         gantt_chart.append({
           "process": current_process["id"],
-          "start": current_time - 1,  # -1 because we've already incremented
+          "start": current_time - 1,  # لا أعلم لم طرحناها لكن البيانات متوافقة تماما, لكن الطرح غالبا لأننا قمنا بزيادتها بافعل
           "end": current_time
         })
+      # حذف العملية الحالية من المصفوفة إذا تحقق الشرك الأول
       current_process = None
     
-    # If no current process, get the highest priority process from ready queue
+    # في حالة عدم وجود عملية حالية وجود عملية في المصفوفة ضع العملية الأولى في المصفوفة في العملية الحالية
     if not current_process and ready_queue:
       current_process = ready_queue.pop(0)
+      # قم بتسجيل معلومات العملية الحالية في مصفوفة جانت
       if not gantt_chart or gantt_chart[-1]["process"] != current_process["id"]:
         gantt_chart.append({
           "process": current_process["id"],
@@ -153,26 +152,29 @@ def calculate_schedule(root):
           "end": None  # Will be set when process is preempted or completed
         })
   
-    # If there's a current process, execute it for one time unit
+    # تحقق من وجود العملية الحالية وقم بطرح واحد من الوقت المتبقي لها في التنفيذ
     if current_process:
       current_process["remaining_time"] -= 1
       
-      # If process is completed
+      # إذا كان الوقت المتبقي للعملية الحالية صفر، قم بتسجيل معلومات العملية في مصفوفة جانت
       if current_process["remaining_time"] == 0:
+        # قم بزيادة عدد العمليات المكتملة واحد
         completed_processes += 1
+        # قم بوضع وقت الإنتهاء في المصفوفة
         completion_times[current_process["id"]] = current_time + 1
-        # Update Gantt chart entry
+        # تسجيل معلومات العملية في مصفوفة جانت
         gantt_chart[-1]["end"] = current_time + 1
+        # حذف العملية الحالية من المصفوفة
         current_process = None
 
-    # If no process is available at this time
+    # تحقق من عدم وجود عملية حالية وعدم وجود عملية في المصفوفة
     if not current_process and not ready_queue:
-      # Find the next arriving process
       next_arrival = float('inf')
       for process in processes:
         if process["remaining_time"] > 0 and process["arrival_time"] > current_time:
           next_arrival = min(next_arrival, process["arrival_time"])
-      
+
+      # إذا لم يكن والوقت القادم التالي لا يساوي 999999 رقم كهذا فإن المعالج خامل
       if next_arrival != float('inf'):
         if gantt_chart and gantt_chart[-1]["process"] == "idle":
           gantt_chart[-1]["end"] = next_arrival
@@ -185,7 +187,7 @@ def calculate_schedule(root):
         current_time = next_arrival
         continue
     
-    # Increment time
+    # قم بزيادة الوقت الحالي بواحد
     current_time += 1
   
   # Calculate metrics
